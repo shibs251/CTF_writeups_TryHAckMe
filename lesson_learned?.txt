@@ -1,0 +1,72 @@
+To start with I open the login page in the in the browser, and i check the source.  There was nothing interesting.  
+There appears to be no robots.txt fiie
+I
+I add the ip to the /etc/hosts file for convenience
+
+I run nmap target -p- -A -T4 to get some basic info about the target
+	-Ports 22/tcp ssh, and 80/tcp are open
+	-http-server-header: Apache/2.4.54 (Debian)
+I attemped to login via ssh.  I randomly chose 'admin' as the username, it accepted this and asked for a password.
+so I think its likely there is a user called admin
+
+I will attempt either to bruteforce the password or use a sql injection. First i am going to run gobuster
+
+gobuster dir -u  http://10.10.148.228 -w /usr/share/wordlists/dirbuster/directory-list-1.0.txt
+	/manual (status: 301)
+
+im going to attempt to bruteforce the login with hydra
+
+
+hydra -t 4 -l admin -P /usr/share/wordlists/rockyou.txt -vV ssh://10.10.148.228 
+	-I shut down hydra after only a few minutes and 284 attempts.  I suspect, ith this being an easy room that there is a faster way to get in.
+	If I was suppsoed to use hydra it probably would have found the password quick, but ill come back to this if necessary.
+
+I'm going to use burpsuite to capture a login attempt
+I attempted to use an 'or 1=1 injection into the username field. I was given the following message:
+ 
+Oops! It looks like you injected an OR 1=1 or similar into the username field. This wouldn't have bypassed the login because every row in the users table was returned, and the login check only proceeds if one row matches the query.
+
+However, your injection also made it into a DELETE statement, and now the flag is gone. Like, completely gone. You need to reset the box to restore it, sorry.
+
+OR 1=1 is dangerous and should almost never be used for precisely this reason. Not even SQLmap uses OR unless you set --risk=3 (the maximum). Be better. Be like SQLmap.
+
+Lesson learned?
+
+P.S. maybe there is less destructive way to bypass the login...
+
+
+Since I suspect 'admin; is the user account I'm going to attempt the same sql injection into the password field.  Ill likely get the same result
+but fuck it.
+
+it seems to jsut not work
+
+An '0r '1'='1'-- - injection, which passes strings instead of numbers, lead to the same message as before warning against such tactics.  As expected.
+
+I attempted admin '-- , the response was "invalid username AND password so its possible admin isnt a user
+or it read '-- as part of the username
+
+Simple login attempts using both "Admin" and 'admin' confirmed neither are usernames.  Ill attempt to enumerate the username field with burpsuite.
+
+I captured another login request and sent it to intruder. I tried the top-usernames-shortlist.txt preloaded on the attack box with no luck.
+
+Next i tried the xato-net-10-million-usernames.txt list and found multiple usernames.  I ended the search and will attempt to bruteforce the passwords
+	-martin, patrick
+I will attempt to bruteforce martins password using burpsuite and the rockyou.txt list.
+After aproximately 400 names with no luck, which took about an hour for some reason.  I did some research on sql injections and decided to
+make another attempt.
+
+I had success usuing a AND "1"="1"-- - sql injection and recieved the following message
+THM{aab02c6b76bb752456a54c80c2d6fb1e}
+Well done! You bypassed the login without deleting the flag!
+
+If you're confused by this message, you probably didn't even try an SQL injection using something like OR 1=1. Good for you, you didn't need to learn the lesson.
+
+For everyone else who had to reset the box...lesson learned?
+
+Using OR 1=1 is risky and should rarely be used in real world engagements. Since it loads all rows of the table, it may not even bypass the login, if the login expects only 1 row to be returned. Loading all rows of a table can also cause performance issues on the database. However, the real danger of OR 1=1 is when it ends up in either an UPDATE or DELETE statement, since it will cause the modification or deletion of every row.
+
+For example, consider that after logging a user in, the application re-uses the username input to update a user's login status: UPDATE users SET online=1 WHERE username='<username>';
+
+A successful injection of OR 1=1 here would cause every user to appear online. A similar DELETE statement, possibly to delete prior session data, could wipe session data for all users of the application.
+
+Consider using AND 1=1 as an alternative, with a valid input (in this case a valid username) to test / confirm SQL injection. 
