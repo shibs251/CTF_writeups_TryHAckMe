@@ -1,0 +1,30 @@
+This was an extremely simple ctf.
+
+I imediately opened the Ip address in the browser as instructed by the room. This brough me to a simple login page.  
+There was no way to register an account but underneath the login button was a statement which read
+
+Don't have an account? Use the guest account! (Ctrl+U)
+
+Typing in ctrl + u opened up the page source.
+At the bottom was a comment which read 
+
+
+<!-- use guest:guest credentials until registration is fixed. "admin" user account is off limits!!!!! -->
+
+So I attempted to login in using 'guest' as both the username and password, it worked.
+
+This brought me to a page with the following screen
+
+Hi, guest. Welcome to our site. Try not to peep your neighbor's profile.
+
+Looking in the browser I could see 
+
+/profile.php?user=guest
+
+So I changed guest to neighbor, and it worked.  The onscreen text was changed to 
+
+Hi, neighbor. Welcome to our site. Try not to peep your neighbor's profile.
+
+I then changed /profile.php?user=neighbor in the browser to read /profile.php?user=admin, and was taken to a page with the flag
+
+Hi, admin. Welcome to your site. The flag is: flag{66be95c478473d91a5358f2440c7af1f}
