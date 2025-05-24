@@ -1,3 +1,7 @@
+This room can be found here https://tryhackme.com/room/easyctf
+
+
+Walkthrough
 This challenge has severak questions that need to be answered.
 	-How many services are running under port 1000?
 	-what is running on the higher port?
@@ -10,7 +14,7 @@ This challenge has severak questions that need to be answered.
 	-What can you leverage to sdpawn a privileged shell?
 	-Whats the root flag?
 
-To start with i will add the ip address to the /etc/hosts file and then perform an nmap scan
+To start with I will add the ip address to the /etc/hosts file and then perform an nmap scan
 nmap target -A -T4
 It showed 3 open ports
 
