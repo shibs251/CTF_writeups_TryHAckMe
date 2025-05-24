@@ -1,6 +1,16 @@
+The room can be found here https://tryhackme.com/room/lessonlearned
+
+This is a relatively easy machine that tries to teach you a lesson, but perhaps you've already learned the lesson? Let's find out.
+
+Treat this box as if it were a real target and not a CTF.
+
+Get past the login screen and you will find the flag. There are no rabbit holes, no hidden files, just a login page and a flag. Good luck!
+
+
+Walkthrough
 To start with I open the login page in the in the browser, and i check the source.  There was nothing interesting.  
 There appears to be no robots.txt fiie
-I
+
 I add the ip to the /etc/hosts file for convenience
 
 I run nmap target -p- -A -T4 to get some basic info about the target
